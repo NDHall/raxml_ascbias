@@ -153,7 +153,7 @@ def filter_prot_invariants(dframe):
 
     return stamatakis_cnt, fels_cnt, dframe
 # Writes three output files: *.phy, *.phy.stamatakis, *.phy.felsenstein
-def write_output(dframe, outfile, ids, st, fel):
+def write_nuc_output(dframe, outfile, ids, st, fel):
 
     write_phylip(dframe, outfile, ids) # Write DataFrame to PHYLIP outfile
 
@@ -201,10 +201,13 @@ df = pd.DataFrame(data, ids) # Creates pandas DataFrame
 # And counts number of invariant sites containing A C G and T (Stamatakis)
 if arguments.aminoacids is False:
     stam, fels, df = filter_nuc_invariants(df)
+    write_nuc_output(df, arguments.outfile, ids, stam, fels)
 else:
     stam, fels, df = filter_prot_invariants(df)
+    write_phylip(df, arguments.outfile, ids)
 
-write_output(df, arguments.outfile, ids, stam, fels)
+
+
 
 # Prints execution time for script
 end = time.time()
