@@ -16,12 +16,17 @@ from Bio import AlignIO
 
 def Get_Arguments():
 
-    parser = argparse.ArgumentParser(description="Does ascertainment bias correction for RAxML and does Felsenstein and Stamatakis counts")
+    parser = argparse.ArgumentParser(description="Does ascertainment bias correction for RAxML and does Felsenstein and "
+                                                 "Stamatakis counts")
 
     parser.add_argument("-p", "--phylip", type=str, required=True, help="Input PHYLIP filename")
     parser.add_argument("-o", "--outfile", type=str, required=False,
-                        help="Output filename; invariant site count filenames will append .felsenstein and .stamatakis; Default = out.phy",
+                        help="Output filename; invariant site count filenames will append .felsenstein and .stamatakis;"
+                             " Default = out.phy",
                         nargs="?", default="out.phy")
+    parser.add_argument("-a","--aminoacids",action='store_true',default=False,help="Designates the file contains aminoac"
+                                                                                   "ids and nucleotides. The Default ass"
+                                                                                   "umes nucleotides.")
 
     args = parser.parse_args()
 
@@ -44,7 +49,7 @@ def Read_Alignment(infile):
     return matrix, my_id_list
 
 # Identifies and drops invariant columns from pandas DataFrame
-def filter_invariants(dframe):
+def filter_nuc_invariants(dframe):
 
     bases = ["A","G","C","T"]
 
@@ -83,7 +88,70 @@ def filter_invariants(dframe):
     dframe.drop(invariant_lst, axis=1, inplace=True)
 
     return stamatakis_cnt, fels_cnt, dframe
+def filter_prot_invariants(dframe):
 
+    bases = [
+                'A',
+                'C',
+                'D',
+                'E',
+                'F',
+                'G',
+                'H',
+                'I',
+                'K',
+                'L',
+                'M',
+                'N',
+                'P',
+                'Q',
+                'R',
+                'S',
+                'T',
+                'V',
+                'W',
+                'Y'
+                ]
+
+    # collections::Counter library
+    stamatakis_cnt = Counter()
+    fels_cnt = 0
+
+    invariant_lst = list()
+
+    # Loop through each dataframe column
+    counter = 0
+    for i in dframe.columns:
+        counter += 1
+
+        # Gets unique values at each column and saves to list
+        column_unique = dframe[i].unique().tolist()
+
+        # Intersects column_unique with bases list
+        intersect = [value for value in bases if value in column_unique]
+
+        # If column contains only ambigous or IUPAC characters
+        # Save the column index for dropping later
+        if not any(value for value in bases if value in column_unique):
+            invariant_lst.append(i)
+
+        # If site is invariant (only AA characters); ignores X's and "-"
+        if len(intersect) == 1:
+            # Uses collections::Counter to get Stamatakis counts
+            stamatakis_cnt[intersect[0]] += 1
+
+            # Counts number of invariant sites for Felsenstein count
+            fels_cnt += 1
+
+            # Saves column indexes to list
+            invariant_lst.append(i)
+            #for debugging
+            #print("dropping invariant {} from col {}".format(intersect[0],counter))
+
+    # Drops invariant sites from dataframe
+    dframe.drop(invariant_lst, axis=1, inplace=True)
+
+    return stamatakis_cnt, fels_cnt, dframe
 # Writes three output files: *.phy, *.phy.stamatakis, *.phy.felsenstein
 def write_output(dframe, outfile, ids, st, fel):
 
@@ -131,7 +199,10 @@ df = pd.DataFrame(data, ids) # Creates pandas DataFrame
 # Drops column if it is invariant
 # Counts number of invariant sites (Felsenstein)
 # And counts number of invariant sites containing A C G and T (Stamatakis)
-stam, fels, df = filter_invariants(df)
+if arguments.aminoacids is False:
+    stam, fels, df = filter_nuc_invariants(df)
+else:
+    stam, fels, df = filter_prot_invariants(df)
 
 write_output(df, arguments.outfile, ids, stam, fels)
 
